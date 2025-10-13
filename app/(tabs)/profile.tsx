@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Switch,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -21,8 +22,10 @@ import {
   Target,
   Moon,
 } from 'lucide-react-native';
+import { useAuth } from '@/context/AuthContext';
 
 export default function ProfileScreen() {
+  const { user, profile, signOut, loading } = useAuth();
   const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = React.useState(true);
 
@@ -78,6 +81,14 @@ export default function ProfileScreen() {
     { title: 'Money Master', emoji: '👑', unlocked: false },
   ];
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#8B5CF6" />
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.container}>
       {/* Header */}
@@ -98,14 +109,14 @@ export default function ProfileScreen() {
         <View style={styles.profileInfo}>
           <View style={styles.avatarContainer}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>A</Text>
+              <Text style={styles.avatarText}>{profile?.full_name?.[0] || 'U'}</Text>
             </View>
             <View style={styles.onlineIndicator} />
           </View>
           <View style={styles.userInfo}>
-            <Text style={styles.userName}>Alex Johnson</Text>
-            <Text style={styles.userEmail}>alex.johnson@email.com</Text>
-            <Text style={styles.joinDate}>Member since Feb 2024</Text>
+            <Text style={styles.userName}>{profile?.full_name || 'New User'}</Text>
+            <Text style={styles.userEmail}>{user?.email}</Text>
+            <Text style={styles.joinDate}>Member since {new Date(user?.created_at || Date.now()).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</Text>
           </View>
         </View>
         <TouchableOpacity style={styles.editButton}>
@@ -208,7 +219,7 @@ export default function ProfileScreen() {
       </View>
 
       {/* Logout Button */}
-      <TouchableOpacity style={styles.logoutButton}>
+      <TouchableOpacity style={styles.logoutButton} onPress={signOut}>
         <LogOut color="#EF4444" size={20} />
         <Text style={styles.logoutText}>Sign Out</Text>
       </TouchableOpacity>
@@ -217,6 +228,12 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+  },
   container: {
     flex: 1,
     backgroundColor: '#0F172A',

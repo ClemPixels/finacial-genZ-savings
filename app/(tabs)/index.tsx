@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,32 +6,106 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   PlusCircle,
   ArrowUpRight,
-  ArrowDownLeft,
   Target,
   TrendingUp,
   Award,
   Zap,
+  Repeat,
 } from 'lucide-react-native';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'expo-router';
+import { supabase } from '@/lib/supabase';
+import { Tables } from '@/lib/database.types';
+
+type Goal = Tables<'goals'>;
+type Transaction = Tables<'transactions'>;
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
+  const { profile, user, loading: authLoading } = useAuth();
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [dashboardData, setDashboardData] = useState<{
+    totalBalance: number;
+    recentGoals: Goal[];
+    recentTransactions: Transaction[];
+  }>({
+    totalBalance: 0,
+    recentGoals: [],
+    recentTransactions: [],
+  });
+
+  const fetchDashboardData = useCallback(async () => {
+    if (!user) return;
+    try {
+      const [walletsRes, goalsRes, transactionsRes] = await Promise.all([
+        supabase.from('wallets').select('balance').eq('user_id', user.id),
+        supabase.from('goals').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(3),
+        supabase.from('transactions').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(3),
+      ]);
+
+      if (walletsRes.error) throw walletsRes.error;
+      if (goalsRes.error) throw goalsRes.error;
+      if (transactionsRes.error) throw transactionsRes.error;
+
+      const totalBalance = walletsRes.data.reduce((sum, wallet) => sum + wallet.balance, 0);
+
+      setDashboardData({
+        totalBalance: totalBalance,
+        recentGoals: goalsRes.data,
+        recentTransactions: transactionsRes.data,
+      });
+
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!authLoading) {
+      fetchDashboardData();
+    }
+  }, [authLoading, fetchDashboardData]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  if (loading || authLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#8B5CF6" />
+      </View>
+    );
+  }
+
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView 
+      style={styles.container}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#8B5CF6" />}
+    >
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>Hey Alex! 👋</Text>
+          <Text style={styles.greeting}>Hey {profile?.full_name?.split(' ')[0] || 'User'}! 👋</Text>
           <Text style={styles.subtitle}>Ready to grow your money?</Text>
         </View>
-        <TouchableOpacity style={styles.profileButton}>
+        <TouchableOpacity style={styles.profileButton} onPress={() => router.push('/(tabs)/profile')}>
           <View style={styles.profileAvatar}>
-            <Text style={styles.profileText}>A</Text>
+            <Text style={styles.profileText}>{profile?.full_name?.[0] || 'U'}</Text>
           </View>
         </TouchableOpacity>
       </View>
@@ -45,10 +119,10 @@ export default function HomeScreen() {
       >
         <View style={styles.balanceContent}>
           <Text style={styles.balanceLabel}>Total Balance</Text>
-          <Text style={styles.balanceAmount}>$4,672.89</Text>
+          <Text style={styles.balanceAmount}>${dashboardData.totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
           <View style={styles.balanceChange}>
             <TrendingUp color="#ffffff" size={16} />
-            <Text style={styles.changeText}>+12.5% this month</Text>
+            <Text style={styles.changeText}>Let's grow it!</Text>
           </View>
         </View>
         <View style={styles.cardDecoration}>
@@ -61,25 +135,25 @@ export default function HomeScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Quick Actions</Text>
         <View style={styles.actionsGrid}>
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/(tabs)/wallet')}>
             <View style={[styles.actionIcon, { backgroundColor: '#10B981' }]}>
               <PlusCircle color="#ffffff" size={24} />
             </View>
             <Text style={styles.actionText}>Add Money</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/(tabs)/wallet')}>
             <View style={[styles.actionIcon, { backgroundColor: '#3B82F6' }]}>
               <ArrowUpRight color="#ffffff" size={24} />
             </View>
             <Text style={styles.actionText}>Send</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/(tabs)/goals')}>
             <View style={[styles.actionIcon, { backgroundColor: '#8B5CF6' }]}>
               <Target color="#ffffff" size={24} />
             </View>
             <Text style={styles.actionText}>New Goal</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/(tabs)/invest')}>
             <View style={[styles.actionIcon, { backgroundColor: '#F59E0B' }]}>
               <Zap color="#ffffff" size={24} />
             </View>
@@ -92,65 +166,37 @@ export default function HomeScreen() {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Active Goals</Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/goals')}>
             <Text style={styles.seeAll}>See All</Text>
           </TouchableOpacity>
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <GoalCard
-            title="New iPhone 15"
-            target={1200}
-            current={750}
-            color="#8B5CF6"
-            emoji="📱"
-          />
-          <GoalCard
-            title="Summer Vacation"
-            target={3000}
-            current={1850}
-            color="#EC4899"
-            emoji="🏖️"
-          />
-          <GoalCard
-            title="Gaming Setup"
-            target={2500}
-            current={900}
-            color="#10B981"
-            emoji="🎮"
-          />
-        </ScrollView>
+        {dashboardData.recentGoals.length > 0 ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {dashboardData.recentGoals.map(goal => (
+              <GoalCard key={goal.id} goal={goal} />
+            ))}
+          </ScrollView>
+        ) : (
+          <Text style={styles.emptySectionText}>No active goals yet. Create one!</Text>
+        )}
       </View>
 
       {/* Recent Transactions */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Recent Activity</Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/wallet')}>
             <Text style={styles.seeAll}>See All</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.transactionsList}>
-          <TransactionItem
-            type="income"
-            title="Freelance Payment"
-            amount="+$450.00"
-            time="2 hours ago"
-            icon="💼"
-          />
-          <TransactionItem
-            type="expense"
-            title="Coffee & Snacks"
-            amount="-$12.50"
-            time="5 hours ago"
-            icon="☕"
-          />
-          <TransactionItem
-            type="savings"
-            title="iPhone Fund"
-            amount="+$50.00"
-            time="1 day ago"
-            icon="📱"
-          />
+          {dashboardData.recentTransactions.length > 0 ? (
+            dashboardData.recentTransactions.map(tx => (
+              <TransactionItem key={tx.id} transaction={tx} />
+            ))
+          ) : (
+            <Text style={styles.emptySectionText}>No recent transactions.</Text>
+          )}
         </View>
       </View>
 
@@ -170,28 +216,22 @@ export default function HomeScreen() {
   );
 }
 
-function GoalCard({ title, target, current, color, emoji }: {
-  title: string;
-  target: number;
-  current: number;
-  color: string;
-  emoji: string;
-}) {
-  const progress = (current / target) * 100;
+function GoalCard({ goal }: { goal: Goal }) {
+  const progress = (goal.current_amount / goal.target_amount) * 100;
 
   return (
-    <View style={[styles.goalCard, { borderLeftColor: color }]}>
+    <View style={[styles.goalCard, { borderLeftColor: goal.color || '#8B5CF6' }]}>
       <View style={styles.goalHeader}>
-        <Text style={styles.goalEmoji}>{emoji}</Text>
-        <Text style={styles.goalTitle}>{title}</Text>
+        <Text style={styles.goalEmoji}>{goal.emoji}</Text>
+        <Text style={styles.goalTitle}>{goal.name}</Text>
       </View>
-      <Text style={styles.goalAmount}>${current.toLocaleString()}</Text>
-      <Text style={styles.goalTarget}>of ${target.toLocaleString()}</Text>
+      <Text style={styles.goalAmount}>${goal.current_amount.toLocaleString()}</Text>
+      <Text style={styles.goalTarget}>of ${goal.target_amount.toLocaleString()}</Text>
       <View style={styles.progressBar}>
         <View
           style={[
             styles.progressFill,
-            { width: `${progress}%`, backgroundColor: color },
+            { width: `${Math.min(progress, 100)}%`, backgroundColor: goal.color || '#8B5CF6' },
           ]}
         />
       </View>
@@ -200,43 +240,58 @@ function GoalCard({ title, target, current, color, emoji }: {
   );
 }
 
-function TransactionItem({ type, title, amount, time, icon }: {
-  type: 'income' | 'expense' | 'savings';
-  title: string;
-  amount: string;
-  time: string;
-  icon: string;
-}) {
-  const getColor = () => {
-    switch (type) {
-      case 'income':
-        return '#10B981';
-      case 'expense':
-        return '#EF4444';
-      case 'savings':
-        return '#8B5CF6';
-      default:
-        return '#6B7280';
-    }
+function TransactionItem({ transaction }: { transaction: Transaction }) {
+  const isIncome = transaction.type === 'income';
+  const isTransfer = transaction.type === 'transfer';
+  
+  const iconMap: { [key: string]: React.ReactNode } = {
+    'income': <PlusCircle size={20} color="#10B981" />,
+    'expense': <ArrowUpRight size={20} color="#EF4444" />,
+    'transfer': <Repeat size={20} color="#3B82F6" />,
   };
+
+  const categoryIconMap: { [key: string]: string } = {
+    'Food & Drink': '☕',
+    'Shopping': '🛍️',
+    'Transportation': '🚗',
+    'Income': '💼',
+    'Health': '💪',
+    'Goals': '🎯',
+    'Investment': '📈',
+    'Default': '💸'
+  };
+
+  const amountColor = isIncome ? '#10B981' : isTransfer ? '#9CA3AF' : '#EF4444';
+  const amountPrefix = isIncome ? '+' : isTransfer ? '' : '-';
 
   return (
     <View style={styles.transactionItem}>
       <View style={styles.transactionIcon}>
-        <Text style={styles.transactionEmoji}>{icon}</Text>
+        <Text style={styles.transactionEmoji}>{categoryIconMap[transaction.category || 'Default'] || '💸'}</Text>
       </View>
       <View style={styles.transactionDetails}>
-        <Text style={styles.transactionTitle}>{title}</Text>
-        <Text style={styles.transactionTime}>{time}</Text>
+        <Text style={styles.transactionTitle}>{transaction.description}</Text>
+        <Text style={styles.transactionTime}>{new Date(transaction.created_at).toLocaleDateString()}</Text>
       </View>
-      <Text style={[styles.transactionAmount, { color: getColor() }]}>
-        {amount}
-      </Text>
+      <View style={{alignItems: 'flex-end'}}>
+        <Text style={[styles.transactionAmount, { color: amountColor }]}>
+          {amountPrefix}${transaction.amount.toFixed(2)}
+        </Text>
+        <View style={styles.transactionTypeIcon}>
+          {iconMap[transaction.type]}
+        </View>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+  },
   container: {
     flex: 1,
     backgroundColor: '#0F172A',
@@ -455,6 +510,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  transactionTypeIcon: {
+    marginTop: 4,
+  },
   achievementCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -487,5 +545,11 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontSize: 14,
     marginTop: 2,
+  },
+  emptySectionText: {
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginTop: 16,
+    fontSize: 14,
   },
 });
