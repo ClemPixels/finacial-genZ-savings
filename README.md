@@ -1,1 +1,1 @@
-# finacial-genZ-savings
+# fintech-app-alpha
