@@ -4,11 +4,13 @@ import { StatusBar } from "expo-status-bar";
 import { useFrameworkReady } from "../hooks/useFrameworkReady";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { View, ActivityIndicator } from "react-native";
+import { ThemeProvider, useTheme } from "@/context/ThemeContext";
 
 const RootLayoutNav = () => {
   const { session, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const { theme } = useTheme();
 
   useEffect(() => {
     if (loading) return;
@@ -51,7 +53,7 @@ const RootLayoutNav = () => {
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>
-      <StatusBar style="light" />
+      <StatusBar style={theme === "dark" ? "light" : "dark"} />
     </>
   );
 };
@@ -61,7 +63,9 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <RootLayoutNav />
+      <ThemeProvider>
+        <RootLayoutNav />
+      </ThemeProvider>
     </AuthProvider>
   );
 }

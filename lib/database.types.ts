@@ -96,18 +96,21 @@ export type Database = {
           avatar_url: string | null;
           full_name: string | null;
           id: string;
+          notifications_enabled?: boolean | null;
           updated_at: string | null;
         };
         Insert: {
           avatar_url?: string | null;
           full_name?: string | null;
           id: string;
+          notifications_enabled?: boolean | null;
           updated_at?: string | null;
         };
         Update: {
           avatar_url?: string | null;
           full_name?: string | null;
           id?: string;
+          notifications_enabled?: boolean | null;
           updated_at?: string | null;
         };
         Relationships: [
@@ -122,6 +125,7 @@ export type Database = {
       };
       transactions: {
         Row: {
+          title: string;
           amount: number;
           category: string | null;
           created_at: string;
@@ -141,6 +145,7 @@ export type Database = {
           user_id: string;
         };
         Update: {
+          title: string;
           amount?: number;
           category?: string | null;
           created_at?: string;
