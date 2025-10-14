@@ -24,7 +24,7 @@ export default function GoalsScreen() {
   const { user } = useAuth();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [wallets, setWallets] = useState<Wallet[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAddMoneyModal, setShowAddMoneyModal] = useState(false);
@@ -317,7 +317,7 @@ function GoalCard({
         <View style={styles.goalTitleRow}>
           <Text style={styles.goalEmoji}>{goal.emoji}</Text>
           <View style={styles.goalInfo}>
-            <Text style={styles.goalTitle}>{goal.name}</Text>
+            <Text style={styles.goalTitle}>{goal.title}</Text>
             {goal.deadline && (
               <Text style={styles.goalDeadline}>
                 Target: {new Date(goal.deadline).toLocaleDateString()}
@@ -434,9 +434,9 @@ function AddMoneyModal({
         .update({ balance: newWalletBalance })
         .eq("id", selectedWalletId),
       supabase.from("transactions").insert({
-        title: `Transfer to ${goal.name}`,
+        title: `Transfer to ${goal.title}`,
         user_id: user.id,
-        description: `Transfer to "${goal.name}"`,
+        description: `Transfer to "${goal.title}"`,
         amount: addedAmount,
         type: "transfer",
         category: "Goals",
@@ -467,7 +467,7 @@ function AddMoneyModal({
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Add to "{goal.name}"</Text>
+            <Text style={styles.modalTitle}>Add to "{goal.title}"</Text>
             <TouchableOpacity onPress={onClose}>
               <X color="#9CA3AF" size={24} />
             </TouchableOpacity>

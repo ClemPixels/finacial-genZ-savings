@@ -17,7 +17,7 @@ export type Database = {
           deadline: string | null;
           emoji: string | null;
           id: string;
-          name: string;
+          title: string;
           target_amount: number;
           user_id: string;
         };
@@ -39,7 +39,7 @@ export type Database = {
           deadline?: string | null;
           emoji?: string | null;
           id?: string;
-          name?: string;
+          title?: string;
           target_amount?: number;
           user_id?: string;
         };

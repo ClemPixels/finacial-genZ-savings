@@ -98,12 +98,12 @@
 //   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 // };
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Session, User } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
-import { Tables, TablesUpdate } from '@/lib/database.types';
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { Session, User } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
+import { Tables, TablesUpdate } from "@/lib/database.types";
 
-type Profile = Tables<'profiles'>;
+type Profile = Tables<"profiles">;
 
 type AuthContextType = {
   session: Session | null;
@@ -111,7 +111,7 @@ type AuthContextType = {
   profile: Profile | null;
   signOut: () => void;
   loading: boolean;
-  updateProfile: (updates: TablesUpdate<'profiles'>) => Promise<void>;
+  updateProfile: (updates: TablesUpdate<"profiles">) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -119,7 +119,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   profile: null,
   signOut: () => {},
-  loading: true,
+  loading: false,
   updateProfile: async () => {},
 });
 
@@ -131,11 +131,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -166,9 +168,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const fetchProfile = async (userId: string) => {
     try {
       const { data, error, status } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
         .single();
       if (error && status !== 406) {
         throw error;
@@ -177,13 +179,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setProfile(data);
       }
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      console.error("Error fetching profile:", error);
     }
   };
 
-  const updateProfile = async (updates: TablesUpdate<'profiles'>) => {
-    if (!user) throw new Error('No user logged in');
-    const { error } = await supabase.from('profiles').update(updates).eq('id', user.id);
+  const updateProfile = async (updates: TablesUpdate<"profiles">) => {
+    if (!user) throw new Error("No user logged in");
+    const { error } = await supabase
+      .from("profiles")
+      .update(updates)
+      .eq("id", user.id);
     if (error) throw error;
     // Refresh local profile state
     await fetchProfile(user.id);
