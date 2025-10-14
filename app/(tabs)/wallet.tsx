@@ -317,7 +317,7 @@ function CreateWalletModal({
     }
     const { error } = await supabase
       .from("wallets")
-      .insert({ title: name, name, type, user_id: user.id });
+      .insert({ name, type, user_id: user.id });
     if (error) {
       Alert.alert("Error", error.message);
     } else {
